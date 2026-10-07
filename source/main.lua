@@ -1049,16 +1049,220 @@ local function updateTitle()
 	if G.bestViral > 0 then txtR("Best viral: " .. G.bestViral, 394, 222) end
 end
 
+---------------------------------------------------------------- level screen art
+local lvlMode, lvlT = nil, 0
+local function levelTick(m)
+	if lvlMode ~= m then lvlMode, lvlT = m, 0 end
+	lvlT = lvlT + 1
+end
+
+local function star(cx, cy, r, rot)
+	gfx.setColor(BLACK)
+	for i = 0, 9 do
+		local a0 = rot - pi / 2 + i * pi / 5
+		local a1 = a0 + pi / 5
+		local r0 = (i % 2 == 0) and r or r * 0.45
+		local r1 = (i % 2 == 0) and r * 0.45 or r
+		gfx.fillTriangle(cx, cy, cx + cos(a0) * r0, cy + sin(a0) * r0, cx + cos(a1) * r1, cy + sin(a1) * r1)
+	end
+end
+
+-- hero scenes are drawn in a 200x72 box (origin shifted by setDrawOffset), ground at y=60
+local HERO_X, HERO_Y, HERO_W, HERO_H = 100, 64, 200, 72
+local GY = 60
+local HERO = {}
+
+HERO.cook = function(t)
+	gfx.setColor(BLACK)
+	line(0, GY, 200, GY)
+	for i = 0, 3 do
+		local x = 72 + i * 14
+		gfx.fillTriangle(x - 4, GY, x + 4, GY, x, GY - 8 - 4 * sin(t * 0.4 + i))
+	end
+	gfx.fillRect(62, 40, 66, 8)
+	gfx.fillRect(128, 42, 44, 4)
+	local p = (t % 70) / 70
+	local fy = 33 - 28 * 4 * p * (1 - p)
+	local fx = 95 + (p - 0.5) * 14
+	circ(fx, fy, 7)
+	gfx.setColor(WHITE); circ(fx - 2, fy - 3, 2); gfx.setColor(BLACK)
+	if p > 0.35 and p < 0.65 then
+		sparkle(fx + 14, fy + 2, 4); sparkle(fx - 14, fy + 4, 3)
+	end
+	for i = 1, 3 do
+		local x = 150 + i * 12
+		line(x, 30, x + sin(t * 0.2 + i) * 4, 14 + (i % 2) * 6, 1)
+	end
+end
+
+HERO.pet = function(t)
+	gfx.setColor(BLACK)
+	line(0, GY, 200, GY)
+	stick(24, GY - 14, 0, (t % 90 < 20) and -14 or 6, 4, 5, 0.8)
+	local dx = 150
+	local jy = -5 * abs(sin(t * 0.2))
+	local run = sin(t * 0.4)
+	gfx.fillEllipseInRect(dx - 18, 40 + jy, 36, 16)
+	circ(dx + 20, 38 + jy, 8)
+	gfx.fillTriangle(dx + 15, 33 + jy, dx + 20, 24 + jy, dx + 23, 33 + jy)
+	line(dx - 14, 52 + jy, dx - 14 + run * 5, GY, 3)
+	line(dx + 12, 52 + jy, dx + 12 - run * 5, GY, 3)
+	line(dx - 18, 44 + jy, dx - 28, 32 + jy + run * 6, 3)
+	gfx.setColor(WHITE); circ(dx + 23, 36 + jy, 2); gfx.setColor(BLACK)
+	local p = (t % 90) / 90
+	gfx.fillEllipseInRect(30 + p * 120 - 8, 36 - 26 * sin(pi * p) - 2, 16, 4)
+	if p > 0.8 then sparkle(dx + 20, 14, 3 + floor(t / 4) % 3) end
+end
+
+HERO.fail = function(t)
+	gfx.setColor(BLACK)
+	line(0, GY, 200, GY)
+	gfx.fillTriangle(10, GY, 46, GY, 46, GY - 14)
+	local p = (t % 110) / 110
+	if p < 0.25 then
+		local x = 20 + p / 0.25 * 26
+		local gy = GY - clamp(x - 10, 0, 36) * 14 / 36
+		gfx.fillRect(x - 12, gy - 3, 24, 3)
+		circ(x - 8, gy, 2); circ(x + 8, gy, 2)
+		stick(x, gy - 17, 0, 4, 4, 6, 0.7)
+	elseif p < 0.7 then
+		local q = (p - 0.25) / 0.45
+		local x = 46 + q * 94
+		local y = 29 + 21 * q - 16 * 4 * q * (1 - q)
+		stick(x, y, q * 2 * pi, -14, -14, 6, 0.7)
+		local a2 = q * pi * 3
+		local bx, by = x - q * 10, y + 16
+		line(bx - 12 * cos(a2), by - 12 * sin(a2), bx + 12 * cos(a2), by + 12 * sin(a2), 3)
+	else
+		stick(140, GY - 10, pi / 2, -10, 10, 7, 0.7)
+		gfx.fillRect(168, GY - 4, 24, 3)
+		if p < 0.78 then burst(140, GY - 10, 18, (p - 0.7) * 40) end
+		for i = 0, 2 do
+			local a = t * 0.2 + i * 2.1
+			sparkle(158 + cos(a) * 18, 36 + sin(a) * 6, 3)
+		end
+	end
+end
+
+HERO.talk = function(t)
+	gfx.setColor(BLACK)
+	gfx.fillRect(44, 54, 52, 18)
+	circ(70, 34, 22)
+	gfx.setColor(WHITE)
+	if t % 70 < 3 then
+		line(58, 30, 68, 30); line(72, 30, 82, 30)
+	else
+		circ(63, 31, 4); circ(77, 31, 4)
+	end
+	gfx.setColor(BLACK); circ(63, 32, 2); circ(77, 32, 2)
+	gfx.setColor(WHITE)
+	line(56, 22, 68, 20, 2); line(72, 20, 84, 22, 2)
+	gfx.fillEllipseInRect(62, 42, 16, 2 + 8 * abs(sin(t * 0.5)))
+	gfx.setColor(WHITE); gfx.fillRoundRect(112, 8, 80, 40, 6)
+	gfx.setColor(BLACK); gfx.setLineWidth(2); gfx.drawRoundRect(112, 8, 80, 40, 6); gfx.setLineWidth(1)
+	gfx.fillTriangle(114, 30, 100, 34, 114, 40)
+	for i = 0, floor(t / 14) % 4 do
+		line(122, 18 + i * 8, 122 + 40 + (i * 13 % 20), 18 + i * 8, 2)
+	end
+end
+
+HERO.story = function(t)
+	gfx.setColor(WHITE)
+	gfx.fillPolygon(36, 56, 100, 60, 100, 22, 36, 18)
+	gfx.fillPolygon(100, 60, 164, 56, 164, 18, 100, 22)
+	gfx.setColor(BLACK); gfx.setLineWidth(2)
+	gfx.drawPolygon(36, 56, 100, 60, 100, 22, 36, 18)
+	gfx.drawPolygon(100, 60, 164, 56, 164, 18, 100, 22)
+	gfx.setLineWidth(1)
+	local n = floor(t / 10) % 9
+	for i = 0, 7 do
+		if i < n then
+			local row = i % 4
+			if i < 4 then
+				line(44, 26 + row * 8, 92 - (row * 7 % 12), 28 + row * 8)
+			else
+				line(108, 28 + row * 8, 156 - (row * 5 % 10), 26 + row * 8)
+			end
+		end
+	end
+	circ(176, 12, 8)
+	gfx.setColor(WHITE); circ(180, 10, 7); gfx.setColor(BLACK)
+	sparkle(20, 14, 3 + floor(t / 12) % 2)
+	sparkle(40, 6, 2)
+	sparkle(190, 44, 3 + floor(t / 12 + 1) % 2)
+end
+
+HERO.dance = function(t)
+	gfx.setColor(BLACK)
+	local bi = floor(t / 15)
+	local pose = bi % 4
+	local ph = (t % 15) / 15
+	gfx.drawCircleAtPoint(100, 36, 10 + ph * 20)
+	line(0, 62, 200, 62)
+	local arms = { { -16, -16 }, { 10, 10 }, { -16, 8 }, { 8, -16 } }
+	local legs = { 6, 14, 4, 14 }
+	local sway = (pose % 2 == 0) and -12 or 12
+	local jy = (pose % 2 == 1) and -8 * sin(pi * ph) or 0
+	local a = arms[pose + 1]
+	stick(100 + sway, 44 + jy, sway * 0.01, a[1], a[2], legs[pose + 1], 1)
+	for i = 0, 1 do
+		local x = 30 + i * 140
+		local y = 56 - (t * 0.6 + i * 30) % 46
+		circ(x, y, 3)
+		line(x + 3, y, x + 3, y - 9)
+	end
+end
+
+local function drawHero(id, t)
+	local scene = HERO[id]
+	if not scene then return end
+	gfx.setDrawOffset(HERO_X, HERO_Y)
+	scene(t)
+	gfx.setDrawOffset(0, 0)
+	gfx.setColor(BLACK)
+	gfx.setLineWidth(2)
+	gfx.drawRoundRect(HERO_X - 1, HERO_Y - 1, HERO_W + 2, HERO_H + 2, 6)
+	gfx.setLineWidth(1)
+end
+
 local function updateWeekIntro()
+	levelTick("weekintro")
 	if inp.a then startCareerVideo() end
 	gfx.clear(WHITE)
 	gfx.setColor(BLACK); gfx.fillRect(0, 0, 400, 22)
 	whiteText(function() txtC("WEEK " .. G.week .. ": " .. (WEEK_NAMES[min(G.week, #WEEK_NAMES)]), 200, 3) end)
-	txt("3 videos this week.", 20, 40)
-	txt("Target: +" .. weekTarget(G.week) .. " followers", 20, 62)
-	txt("Trend: " .. G.trend.name, 20, 90)
-	txt(G.trend.desc, 20, 108)
-	if G.prevTrend and G.prevTrend.id == G.trend.id then txt("(same as last week: stale!)", 20, 128) end
+	-- film strip: one window per video, done = tick, current = inverted
+	gfx.setColor(BLACK); gfx.fillRect(20, 30, 212, 38)
+	gfx.setColor(WHITE)
+	for x = 24, 224, 8 do gfx.fillRect(x, 32, 4, 3); gfx.fillRect(x, 63, 4, 3) end
+	for i = 1, 3 do
+		local wx = 24 + (i - 1) * 70
+		gfx.setColor(WHITE); gfx.fillRect(wx, 37, 62, 26)
+		if i == G.vid then
+			gfx.setColor(BLACK); gfx.fillRect(wx + 3, 40, 56, 20)
+			whiteText(function() txtC(tostring(i), wx + 31, 42) end)
+		elseif i < G.vid then
+			gfx.setColor(BLACK)
+			line(wx + 24, 50, wx + 30, 57, 3); line(wx + 30, 57, wx + 40, 42, 3)
+		else
+			gfx.setColor(BLACK); txtC(tostring(i), wx + 31, 42)
+		end
+	end
+	local cx = 24 + (G.vid - 1) * 70 + 31
+	gfx.setColor(BLACK)
+	local bob = floor(lvlT / 10) % 2
+	gfx.fillTriangle(cx - 5, 74 + bob, cx + 5, 74 + bob, cx, 69 + bob)
+	-- trend badge
+	gfx.fillRoundRect(248, 30, 132, 38, 6)
+	whiteText(function() txtC("TREND", 314, 33); txtC(G.trend.name, 314, 49) end)
+	local sa = lvlT * 0.08
+	gfx.setColor(WHITE)
+	sparkle(256 + cos(sa) * 2, 36, 3)
+	sparkle(372, 62 + sin(sa) * 2, 3)
+	gfx.setColor(BLACK)
+	txt("Target: +" .. weekTarget(G.week) .. " followers", 20, 86)
+	txt("Rule: " .. G.trend.desc, 20, 106)
+	if G.prevTrend and G.prevTrend.id == G.trend.id then txt("(same as last week: stale!)", 20, 126) end
 	txt("Footage this week:", 20, 150)
 	local names = {}
 	for _, id in ipairs(unlocked(G.week)) do names[#names + 1] = TYPES[id].name end
@@ -1067,23 +1271,27 @@ local function updateWeekIntro()
 end
 
 local function updateIntro()
+	levelTick("intro")
 	if inp.a then enterPass("hook") end
 	gfx.clear(WHITE)
 	gfx.setColor(BLACK); gfx.fillRect(0, 0, 400, 22)
 	whiteText(function()
 		txtC(G.sandbox and "SANDBOX" or ("WEEK " .. G.week .. "  VIDEO " .. G.vid .. "/3"), 200, 3)
 	end)
-	bigText(clip.name, 200, 40, 2, "c")
+	bigText(clip.name, 200, 25, 2, "c")
+	drawHero(clip.id, lvlT)
+	local y = G.sandbox and 148 or 140
 	if not G.sandbox then
-		txtC("Trend: " .. G.trend.name .. ". " .. G.trend.desc, 200, 100)
-		txtC("Followers: " .. G.followers .. "   (week " .. (G.followers - G.weekStart) .. "/" .. weekTarget(G.week) .. ")", 200, 124)
+		txtC("Trend: " .. G.trend.name .. ". " .. G.trend.desc, 200, y); y = y + 17
+		txtC("Followers: " .. G.followers .. "   (week " .. (G.followers - G.weekStart) .. "/" .. weekTarget(G.week) .. ")", 200, y); y = y + 17
 	end
-	txtC("Hook > Cuts > Beat > Caption > Publish", 200, 154)
-	txtC("Crank scrubs. Cut on the action. Mind the clock.", 200, 174)
+	txtC("Hook > Cuts > Beat > Caption > Publish", 200, y); y = y + 17
+	txtC("Crank scrubs. Cut on the action. Mind the clock.", 200, y)
 	txtC("A: start editing", 200, 218)
 end
 
 local function updateWeekEnd()
+	levelTick("weekend")
 	local gain = G.followers - G.weekStart
 	local target = weekTarget(G.week)
 	local pass = gain >= target
@@ -1096,14 +1304,52 @@ local function updateWeekEnd()
 	gfx.clear(WHITE)
 	gfx.setColor(BLACK); gfx.fillRect(0, 0, 400, 22)
 	whiteText(function() txtC("WEEK " .. G.week .. " REVIEW", 200, 3) end)
-	bigText("+" .. gain, 200, 40, 3, "c")
-	txtC("followers this week (target +" .. target .. ")", 200, 90)
+	bigText("+" .. gain, 200, 26, 3, "c")
+	txtC("followers this week (target +" .. target .. ")", 200, 78)
 	if pass then
-		bigText("PROMOTED!", 200, 116, 2, "c")
-		if G.week + 1 >= 2 and G.week + 1 <= 4 then txtC("New footage type unlocked.", 200, 160) end
+		bigText("PROMOTED!", 200, 98, 2, "c")
+		if G.week + 1 >= 2 and G.week + 1 <= 4 then txtC("New footage type unlocked.", 200, 134) end
+		local r = 9 + sin(lvlT * 0.15) * 2
+		star(60, 112, r, lvlT * 0.05); star(340, 112, r, -lvlT * 0.05)
 	else
-		bigText("MISSED IT", 200, 116, 2, "c")
-		txtC("Same week again. Learn from the verdicts.", 200, 160)
+		bigText("MISSED IT", 200, 98, 2, "c")
+		txtC("Same week again. Learn from the verdicts.", 200, 134)
+		local bob = sin(lvlT * 0.12) * 2
+		for _, x in ipairs({ 60, 340 }) do
+			gfx.setColor(BLACK)
+			gfx.fillRect(x - 4, 100 + bob, 8, 12)
+			gfx.fillTriangle(x - 11, 112 + bob, x + 11, 112 + bob, x, 125 + bob)
+		end
+	end
+	-- follower graph: three videos, line draws itself against the dashed target
+	local gx0, gx1, gy0, gy1 = 70, 320, 168, 210
+	gfx.setColor(BLACK)
+	line(gx0, gy0, gx0, gy1); line(gx0, gy1, gx1 + 10, gy1)
+	local ymax = max(target, gain, 1) * 1.15
+	local function Y(v) return gy1 - clamp(v, 0, ymax) / ymax * (gy1 - gy0) end
+	local ty = Y(target)
+	for x = gx0, gx1 - 4, 10 do line(x, ty, x + 5, ty) end
+	txt("goal", gx1 + 14, ty - 8)
+	local px, py = {}, {}
+	for i = 0, 3 do
+		px[i] = gx0 + (gx1 - gx0) * i / 3
+		py[i] = Y(gain * i / 3)
+	end
+	local prog = clamp(lvlT / 50, 0, 1) * 3
+	for i = 1, 3 do
+		local s = clamp(prog - (i - 1), 0, 1)
+		if s > 0 then
+			line(px[i - 1], py[i - 1], px[i - 1] + (px[i] - px[i - 1]) * s, py[i - 1] + (py[i] - py[i - 1]) * s, 3)
+			if s >= 1 then circ(px[i], py[i], 3) end
+		end
+	end
+	circ(px[0], py[0], 3)
+	if prog >= 3 then
+		if pass then
+			star(px[3], py[3] - 12, 9, lvlT * 0.08)
+		else
+			line(px[3] - 5, py[3] - 14, px[3] + 5, py[3] - 4, 3); line(px[3] + 5, py[3] - 14, px[3] - 5, py[3] - 4, 3)
+		end
 	end
 	txtC("A: continue", 200, 218)
 end
