@@ -25,3 +25,7 @@ In the simulator, drag the on-screen crank to scrub. D-pad left/right steps one 
 ## Status
 
 Prototype. All footage is procedural 1-bit drawing, so there are no assets. Not yet built: Daily Clip, Endless Feed, extra unlock tools, and a clip authoring tool.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
